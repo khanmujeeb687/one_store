@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class OneStore<T> {
   T? _state;
 
@@ -5,9 +7,14 @@ class OneStore<T> {
     this._state = initialState;
   }
 
-  T? getState() => _state;
+  R getState<R>(Function(T? state) selector) => selector(_state);
 
-  void setState(T? newState) {
-    _state = newState;
+  Widget createComponent<K>(
+    BuildContext context,
+    K Function(T? state) selector,
+    Function(BuildContext context, K data) builder,
+  ) {
+    K data = selector(this._state);
+    return builder(context, data);
   }
 }
