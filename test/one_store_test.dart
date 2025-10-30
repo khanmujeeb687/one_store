@@ -1,63 +1,100 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:one_store/one_store.dart';
 
 void main() {
   group('OneStore', () {
-    test('getState returns selected value for non-null state', () {
-      final OneStore<int> store = OneStore<int>(42);
-
-      final result = store.getState<int>((s) => s ?? -1);
-
-      expect(result, 42);
+    test('initial state is set correctly', () {
+      final store = OneStore<int>(10);
+      expect(store.state, equals(10));
     });
 
-    test('getState handles null state', () {
-      final OneStore<int> store = OneStore<int>(null);
-
-      final result = store.getState<int>((s) => s ?? -1);
-
-      expect(result, -1);
+    test('setState updates the value', () {
+      final store = OneStore<int>(0);
+      store.setState(5);
+      expect(store.state, equals(5));
     });
 
-    testWidgets('createComponent passes selected data to builder (non-null)',
-        (WidgetTester tester) async {
-      final OneStore<String> store = OneStore<String>('hello');
+    test('getState returns selected value', () {
+      final store = OneStore<Map<String, dynamic>>({'count': 10});
+      final count = store.getState((state) => state?['count']);
+      expect(count, equals(10));
+    });
 
-      // Host widget that uses createComponent in its build
-      final host = MaterialApp(
-        home: Builder(builder: (context) {
-          return store.createComponent<String>(
-            context,
-            (s) => s ?? 'EMPTY',
-            (ctx, data) => Text(data),
-          );
-        }),
+    testWidgets('createComponent builds widget with initial state',
+        (tester) async {
+      final store = OneStore<int>(1);
+
+      final widget = MaterialApp(
+        home: store.createComponent<int>(
+          (state) => state ?? 0,
+          (context, value) => Text('Value: $value', textDirection: TextDirection.ltr),
+        ),
       );
 
-      await tester.pumpWidget(host);
-
-      expect(find.text('hello'), findsOneWidget);
+      await tester.pumpWidget(widget);
+      expect(find.text('Value: 1'), findsOneWidget);
     });
 
-    testWidgets('createComponent passes selected data to builder (null)',
-        (WidgetTester tester) async {
-      final OneStore<String> store = OneStore<String>(null);
+    testWidgets('createComponent rebuilds when selected value changes',
+        (tester) async {
+      final store = OneStore<int>(0);
+      int buildCount = 0;
 
-      final host = MaterialApp(
-        home: Builder(builder: (context) {
-          return store.createComponent<String>(
-            context,
-            (s) => s ?? 'EMPTY',
-            (ctx, data) => Text(data),
-          );
-        }),
+      final widget = MaterialApp(
+        home: store.createComponent<int>(
+          (state) => state ?? 0,
+          (context, value) {
+            buildCount++;
+            return Text('Count: $value', textDirection: TextDirection.ltr);
+          },
+        ),
       );
 
-      await tester.pumpWidget(host);
+      await tester.pumpWidget(widget);
+      expect(find.text('Count: 0'), findsOneWidget);
+      expect(buildCount, equals(1));
 
-      expect(find.text('EMPTY'), findsOneWidget);
+      // Update the store and trigger rebuild
+      store.setState(1);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Count: 1'), findsOneWidget);
+      expect(buildCount, equals(2));
+    });
+
+    testWidgets('does not rebuild if selector output is unchanged',
+        (tester) async {
+      final store = OneStore<Map<String, dynamic>>({'a': 1, 'b': 2});
+      int buildCount = 0;
+
+      final widget = MaterialApp(
+        home: store.createComponent<int>(
+          (state) => state?['a'] ?? 0, // only depends on 'a'
+          (context, value) {
+            buildCount++;
+            return Text('A: $value', textDirection: TextDirection.ltr);
+          },
+        ),
+      );
+
+      await tester.pumpWidget(widget);
+      expect(find.text('A: 1'), findsOneWidget);
+      expect(buildCount, equals(1));
+
+      // Change unrelated field ('b'), selector result is still 1
+      store.setState({'a': 1, 'b': 3});
+      await tester.pumpAndSettle();
+
+      // No rebuild should happen
+      expect(buildCount, equals(1));
+
+      // Now actually change 'a'
+      store.setState({'a': 2, 'b': 3});
+      await tester.pumpAndSettle();
+
+      expect(find.text('A: 2'), findsOneWidget);
+      expect(buildCount, equals(2));
     });
   });
 }
