@@ -69,7 +69,6 @@ void main() {
       int buildCount = 0;
 
       final store = OneStore<BigState>(BigState([0]));
-      await store.load();
 
       await tester.pumpWidget(MaterialApp(
         home: store.createComponent<int>(
@@ -87,7 +86,7 @@ void main() {
       }
 
       print('Selector builder rebuilt: $buildCount times');
-      expect(buildCount <= 25, true);
+      expect(buildCount <= 21, true);
     });
 
     // --- Parameterized tests for huge states ---
