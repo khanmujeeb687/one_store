@@ -7,10 +7,15 @@ import 'package:one_store/persistable.dart';
 class OneStore<T extends Persistable<T>> {
   final ValueNotifier<T?> _notifier;
 
-  OneStore(T initialState) : _notifier = ValueNotifier(initialState);
+  OneStore(
+    T initialState,
+  ) : _notifier = ValueNotifier(initialState);
+
+  Future<void> load() async => _loadFromLocal();
+
   T? get state => _notifier.value;
 
-  Future<void> loadFromLocal() async {
+  Future<void> _loadFromLocal() async {
     final savedString = await _notifier.value?.readStringLocally();
     if (savedString != null) {
       _notifier.value = _notifier.value?.fromString(savedString);
@@ -24,7 +29,6 @@ class OneStore<T extends Persistable<T>> {
   R getState<R>(R Function(T? state) selector) => selector(_notifier.value);
 
   void _onDestroy() {
-    _notifier.dispose();
     _notifier.value?.saveStringLocally(_notifier.value.toString());
   }
 

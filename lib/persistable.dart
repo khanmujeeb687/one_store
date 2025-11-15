@@ -11,10 +11,20 @@ abstract class Persistable<T> {
 
   T fromString(String jsonString);
 
+  static bool _isWriting = false;
+
   Future<void> saveStringLocally(String value) async {
-    final file = File('local_data.txt');
-    await file.writeAsString(value);
-    debugPrint('Data saved successfully.');
+    while (_isWriting) {
+      await Future.delayed(Duration(milliseconds: 1));
+    }
+
+    _isWriting = true;
+    try {
+      final file = File('local_data.txt');
+      await file.writeAsString(value);
+    } finally {
+      _isWriting = false;
+    }
   }
 
   Future<String?> readStringLocally() async {
